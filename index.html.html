@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Schulden">
+<meta name="theme-color" content="#10131c">
+<title>Schuldenliste</title>
+<style>
+  :root {
+    --bg: #f2f2f7;
+    --card: #ffffff;
+    --text: #1c1c1e;
+    --text-sec: #6e6e73;
+    --text-ter: #aeaeb2;
+    --green: #2ea666;
+    --green-bg: rgba(46, 166, 102, 0.12);
+    --red: #db4545;
+    --red-bg: rgba(219, 69, 69, 0.12);
+    --orange: #e8862e;
+    --orange-bg: rgba(232, 134, 46, 0.14);
+    --divider: rgba(60, 60, 67, 0.12);
+    --seg-bg: rgba(118, 118, 128, 0.12);
+    --tab-bg: rgba(249, 249, 249, 0.92);
+    --sheet-bg: #f2f2f7;
+    --input-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1117;
+      --card: #1a1f2b;
+      --text: #f2f2f7;
+      --text-sec: #9a9aa2;
+      --text-ter: #5c5c66;
+      --green: #36c178;
+      --green-bg: rgba(54, 193, 120, 0.14);
+      --red: #ef5e5e;
+      --red-bg: rgba(239, 94, 94, 0.14);
+      --orange: #f09a4a;
+      --orange-bg: rgba(240, 154, 74, 0.16);
+      --divider: rgba(255, 255, 255, 0.08);
+      --seg-bg: rgba(118, 118, 128, 0.24);
+      --tab-bg: rgba(16, 19, 28, 0.92);
+      --sheet-bg: #0e1117;
+      --input-bg: #1a1f2b;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overscroll-behavior-y: none;
+  }
+  .app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 88px);
+  }
+  h1.page-title { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; margin: 8px 0 16px; }
+
+  /* ---------- Cards ---------- */
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .balance-card { text-align: center; padding: 26px 16px; }
+  .balance-card .label { font-size: 14px; color: var(--text-sec); margin-bottom: 6px; }
+  .balance-card .amount { font-size: 40px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .balance-card .sub { font-size: 13px; color: var(--text-sec); margin-top: 6px; }
+  .balance-card .count { font-size: 12px; color: var(--text-ter); margin-top: 4px; }
+
+  .summary-row { display: flex; gap: 12px; margin-bottom: 12px; }
+  .summary-card { flex: 1; background: var(--card); border-radius: 16px; padding: 14px; }
+  .summary-card .head { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-sec); margin-bottom: 6px; }
+  .summary-card .amt { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .section-title { display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 700; margin: 18px 0 10px; }
+
+  /* ---------- Debt card ---------- */
+  .debt-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border-radius: 16px;
+    padding: 14px; margin-bottom: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.08s ease;
+  }
+  .debt-card:active { transform: scale(0.98); }
+  .debt-card.green { border-color: var(--green-bg); }
+  .debt-card.red { border-color: var(--red-bg); }
+  .debt-card .icon {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .icon.in  { background: var(--green-bg); color: var(--green); }
+  .icon.out { background: var(--red-bg); color: var(--red); }
+  .icon.done { background: var(--seg-bg); color: var(--text-sec); }
+  .debt-card .info { flex: 1; min-width: 0; }
+  .debt-card .name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .debt-card .meta { font-size: 12px; color: var(--text-sec); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .badge.overdue { background: var(--orange-bg); color: var(--orange); }
+  .badge.paid { background: var(--green-bg); color: var(--green); }
+  .debt-card .right { text-align: right; }
+  .debt-card .amt { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .debt-card .type { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  .c-green { color: var(--green); }
+  .c-red { color: var(--red); }
+  .c-sec { color: var(--text-sec); }
+
+  /* ---------- Segmented control ---------- */
+  .segmented {
+    display: flex; background: var(--seg-bg); border-radius: 10px;
+    padding: 2px; margin-bottom: 14px;
+  }
+  .segmented button {
+    flex: 1; border: none; background: transparent; color: var(--text);
+    font-size: 13px; font-weight: 600; padding: 7px 4px; border-radius: 8px;
+    font-family: inherit; cursor: pointer;
+  }
+  .segmented button.active { background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+
+  .filter-total { display: flex; justify-content: space-between; font-size: 14px; padding: 0 4px 10px; }
+  .filter-total .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Empty state ---------- */
+  .empty { text-align: center; padding: 56px 24px; color: var(--text-sec); }
+  .empty .e-icon { font-size: 44px; margin-bottom: 12px; opacity: 0.5; }
+  .empty .e-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .empty .e-sub { font-size: 14px; }
+
+  /* ---------- Tab bar ---------- */
+  .tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-around;
+    background: var(--tab-bg);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    border-top: 1px solid var(--divider);
+    padding: 8px 0 calc(env(safe-area-inset-bottom) + 8px);
+    z-index: 50;
+  }
+  .tabbar button {
+    flex: 1; border: none; background: none; font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 600; color: var(--text-ter); cursor: pointer;
+  }
+  .tabbar button .t-icon { font-size: 22px; line-height: 1; }
+  .tabbar button.active { color: var(--green); }
+
+  /* ---------- FAB ---------- */
+  .fab {
+    position: fixed; right: 20px; bottom: calc(env(safe-area-inset-bottom) + 84px);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--green); color: #fff; border: none;
+    font-size: 28px; font-weight: 400; line-height: 1;
+    box-shadow: 0 4px 16px rgba(46, 166, 102, 0.4);
+    cursor: pointer; z-index: 49;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fab:active { transform: scale(0.94); }
+
+  /* ---------- Sheet / Modal ---------- */
+  .sheet-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 100; display: none; align-items: flex-end; justify-content: center;
+  }
+  .sheet-backdrop.open { display: flex; }
+  .sheet {
+    background: var(--sheet-bg); width: 100%; max-width: 560px;
+    border-radius: 20px 20px 0 0;
+    max-height: 92dvh; overflow-y: auto;
+    padding: 16px 16px calc(env(safe-area-inset-bottom) + 20px);
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .sheet-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .sheet-header .title { font-size: 17px; font-weight: 700; }
+  .sheet-header button {
+    border: none; background: none; font-family: inherit; font-size: 16px;
+    color: var(--green); cursor: pointer; padding: 4px;
+  }
+  .sheet-header button.primary { font-weight: 700; }
+  .sheet-header button:disabled { color: var(--text-ter); }
+
+  /* ---------- Form ---------- */
+  .form-group { background: var(--card); border-radius: 14px; margin-bottom: 14px; overflow: hidden; }
+  .form-label { font-size: 13px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 4px 6px; }
+  .form-row { padding: 12px 14px; border-bottom: 1px solid var(--divider); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .form-row:last-child { border-bottom: none; }
+  .form-row label { font-size: 15px; flex-shrink: 0; }
+  input[type="text"], input[type="number"], textarea {
+    border: none; background: transparent; font-family: inherit; font-size: 16px;
+    color: var(--text); width: 100%; outline: none; text-align: right;
+  }
+  textarea { text-align: left; resize: none; min-height: 64px; }
+  input[type="date"] {
+    border: none; background: var(--seg-bg); font-family: inherit; font-size: 15px;
+    color: var(--text); outline: none; padding: 6px 10px; border-radius: 8px;
+  }
+  .type-toggle { display: flex; gap: 10px; padding: 12px 14px; }
+  .type-toggle button {
+    flex: 1; border: 2px solid var(--divider); background: transparent;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-sec);
+    padding: 12px 8px; border-radius: 12px; cursor: pointer;
+  }
+  .type-toggle button.sel-in  { border-color: var(--green); background: var(--green-bg); color: var(--green); }
+  .type-toggle button.sel-out { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+
+  /* ---------- Detail ---------- */
+  .detail-head { text-align: center; background: var(--card); border-radius: 18px; padding: 24px 16px; margin-bottom: 12px; }
+  .detail-head .d-icon { font-size: 40px; margin-bottom: 8px; }
+  .detail-head .d-name { font-size: 22px; font-weight: 800; }
+  .detail-head .d-amt { font-size: 34px; font-weight: 800; margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
+  .detail-head .d-type { font-size: 14px; color: var(--text-sec); }
+  .detail-head .badge { display: inline-block; margin-top: 10px; font-size: 13px; padding: 5px 12px; }
+  .detail-info { background: var(--card); border-radius: 16px; margin-bottom: 12px; }
+  .detail-info .row { display: flex; justify-content: space-between; padding: 13px 14px; font-size: 14px; border-bottom: 1px solid var(--divider); }
+  .detail-info .row:last-child { border-bottom: none; }
+  .detail-info .k { color: var(--text-sec); }
+  .detail-info .v { font-weight: 600; }
+  .note-card { background: var(--card); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+  .note-card .k { font-size: 13px; font-weight: 700; color: var(--text-sec); margin-bottom: 6px; }
+  .note-card .v { font-size: 15px; white-space: pre-wrap; }
+
+  .btn {
+    width: 100%; border: none; border-radius: 14px; padding: 15px;
+    font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .btn:active { opacity: 0.85; }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-gray { background: var(--seg-bg); color: var(--text); }
+  .btn-red-outline { background: var(--red-bg); color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="app" id="app"></div>
+
+<button class="fab" id="fab" onclick="openForm()">+</button>
+
+<nav class="tabbar">
+  <button id="tab-dashboard" onclick="setTab('dashboard')"><span class="t-icon">◔</span>Übersicht</button>
+  <button id="tab-open" onclick="setTab('open')"><span class="t-icon">☰</span>Offen</button>
+  <button id="tab-done" onclick="setTab('done')"><span class="t-icon">✓</span>Erledigt</button>
+</nav>
+
+<!-- Form sheet -->
+<div class="sheet-backdrop" id="form-backdrop">
+  <div class="sheet">
+    <div class="sheet-header">
+      <button onclick="closeForm()">Abbrechen</button>
+      <span class="title" id="form-title">Neuer Eintrag</span>
+      <button class="primary" id="form-save" onclick="saveForm()">Speichern</button>
+    </div>
+    <div class="form-label">Person</div>
+    <div class="form-group">
+      <div class="form-row"><input type="text" id="f-name" placeholder="Name der Person" style="text-align:left" oninput="validateForm()"></div>
+    </div>
+    <div class="form-label">Betrag & Art</div>
+    <div class="form-group">
+      <div class="form-row">
+        <label>Betrag (CHF)</label>
+        <input type="number" id="f-amount" inputmode="decimal" placeholder="0.00" step="0.01" min="0" oninput="validateForm()">
+      </div>
+      <div class="type-toggle">
+        <button id="f-type-in" onclick="setType('in')">↓ Schuldet mir Geld</button>
+        <button id="f-type-out" onclick="setType('out')">↑ Ich schulde Geld</button>
+      </div>
+    </div>
+    <div class="form-label">Daten</div>
+    <div class="form-group">
+      <div class="form-row"><label>Entstanden am</label><input type="date" id="f-created"></div>
+      <div class="form-row"><label>Fällig bis</label><input type="date" id="f-due"></div>
+    </div>
+    <div class="form-label">Notiz (optional)</div>
+    <div class="form-group">
+      <div class="form-row"><textarea id="f-note" placeholder="z. B. Grund der Schuld"></textarea></div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail sheet -->
+<div class="sheet-backdrop" id="detail-backdrop">
+  <div class="sheet" id="detail-sheet"></div>
+</div>
+
+<script>
+'use strict';
+
+const STORAGE_KEY = 'schuldenliste-v1';
+let entries = [];
+let currentTab = 'dashboard';
+let formType = 'in';
+let editingId = null;
+let detailId = null;
+
+// ---------- Storage ----------
+function load() {
+  try {
+    entries = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  } catch (e) { entries = []; }
+}
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+  catch (e) { alert('Speichern fehlgeschlagen. Bitte die App über Safari (nicht als Datei-Vorschau) öffnen.'); }
+}
+
+// ---------- Helpers ----------
+const fmtCHF = new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF' });
+function chf(v) { return fmtCHF.format(v); }
+function fmtDate(iso) {
+  if (!iso) return '–';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function isOverdue(e) { return !e.paid && e.due && e.due < todayISO(); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+function openEntries() { return entries.filter(e => !e.paid).sort((a, b) => a.due.localeCompare(b.due)); }
+function paidEntries() { return entries.filter(e => e.paid).sort((a, b) => (b.paidDate || '').localeCompare(a.paidDate || '')); }
+function sum(list) { return list.reduce((s, e) => s + e.amount, 0); }
+
+// ---------- Rendering ----------
+let listFilter = 'all';
+
+function render() {
+  ['dashboard', 'open', 'done'].forEach(t =>
+    document.getElementById('tab-' + t).classList.toggle('active', currentTab === t));
+  document.getElementById('fab').style.display = currentTab === 'done' ? 'none' : 'flex';
+
+  const app = document.getElementById('app');
+  if (currentTab === 'dashboard') app.innerHTML = renderDashboard();
+  else if (currentTab === 'open') app.innerHTML = renderOpenList();
+  else app.innerHTML = renderDoneList();
+}
+
+function debtCardHTML(e) {
+  const cls = e.paid ? '' : (e.type === 'in' ? 'green' : 'red');
+  const iconCls = e.paid ? 'done' : (e.type === 'in' ? 'in' : 'out');
+  const icon = e.paid ? '✓' : (e.type === 'in' ? '↓' : '↑');
+  const amtCls = e.paid ? 'c-sec' : (e.type === 'in' ? 'c-green' : 'c-red');
+  let meta;
+  if (e.paid) {
+    meta = `Bezahlt am ${fmtDate(e.paidDate)}`;
+  } else {
+    meta = `Fällig: ${fmtDate(e.due)}` + (isOverdue(e) ? ` <span class="badge overdue">Überfällig</span>` : '');
+  }
+  return `
+  <div class="debt-card ${cls}" onclick="openDetail('${e.id}')">
+    <div class="icon ${iconCls}">${icon}</div>
+    <div class="info">
+      <div class="name">${esc(e.name)}</div>
+      <div class="meta">${meta}</div>
+    </div>
+    <div class="right">
+      <div class="amt ${amtCls}">${chf(e.amount)}</div>
+      <div class="type">${e.type === 'in' ? 'Ich bekomme' : 'Ich schulde'}</div>
+    </div>
+  </div>`;
+}
+
+function renderDashboard() {
+  const open = openEntries();
+  const totalIn = sum(open.filter(e => e.type === 'in'));
+  const totalOut = sum(open.filter(e => e.type === 'out'));
+  const net = totalIn - totalOut;
+  const overdue = open.filter(isOverdue);
+  const next = open.slice(0, 4);
+
+  let html = `<h1 class="page-title">Übersicht</h1>
+  <div class="card balance-card">
+    <div class="label">Netto-Bilanz</div>
+    <div class="amount ${net >= 0 ? 'c-green' : 'c-red'}">${chf(net)}</div>
+    <div class="sub">${net >= 0 ? 'Du bekommst insgesamt noch Geld' : 'Du musst insgesamt noch zahlen'}</div>
+    <div class="count">${open.length} offene Einträge</div>
+  </div>
+  <div class="summary-row">
+    <div class="summary-card">
+      <div class="head"><span class="c-green">↓</span> Ich bekomme</div>
+      <div class="amt c-green">${chf(totalIn)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="head"><span class="c-red">↑</span> Ich schulde</div>
+      <div class="amt c-red">${chf(totalOut)}</div>
+    </div>
+  </div>`;
+
+  if (overdue.length) {
+    html += `<div class="section-title">⚠️ Überfällig</div>` + overdue.map(debtCardHTML).join('');
+  }
+  if (next.length) {
+    html += `<div class="section-title">📅 Nächste Fälligkeiten</div>` + next.map(debtCardHTML).join('');
+  } else {
+    html += `<div class="empty">
+      <div class="e-icon">📭</div>
+      <div class="e-title">Keine offenen Schulden</div>
+      <div class="e-sub">Tippe auf + um einen neuen Eintrag zu erfassen.</div>
+    </div>`;
+  }
+  return html;
+}
+
+function renderOpenList() {
+  const open = openEntries();
+  const filtered = listFilter === 'all' ? open : open.filter(e => e.type === listFilter);
+  const total = sum(filtered);
+
+  let html = `<h1 class="page-title">Offene Schulden</h1>
+  <div class="segmented">
+    <button class="${listFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">Alle</button>
+    <button class="${listFilter === 'in' ? 'active' : ''}" onclick="setFilter('in')">Ich bekomme</button>
+    <button class="${listFilter === 'out' ? 'active' : ''}" onclick="setFilter('out')">Ich schulde</button>
+  </div>`;
+
+  if (listFilter !== 'all' && filtered.length) {
+    html += `<div class="filter-total"><span class="c-sec">Total</span>
+      <span class="v ${listFilter === 'in' ? 'c-green' : 'c-red'}">${chf(total)}</span></div>`;
+  }
+
+  if (!filtered.length) {
+    html += `<div class="empty">
+      <div class="e-icon">🎉</div>
+      <div class="e-title">Nichts offen</div>
+      <div class="e-sub">In dieser Ansicht gibt es aktuell keine Einträge.</div>
+    </div>`;
+  } else {
+    html += filtered.map(debtCardHTML).join('');
+  }
+  return html;
+}
+
+function renderDoneList() {
+  const paid = paidEntries();
+  let html = `<h1 class="page-title">Erledigt</h1>`;
+  if (!paid.length) {
+    html += `<div class="empty">
+      <div class="e-icon">✅</div>
+      <div class="e-title">Noch nichts erledigt</div>
+      <div class="e-sub">Bezahlte Einträge erscheinen hier automatisch.</div>
+    </div>`;
+  } else {
+    html += paid.map(debtCardHTML).join('');
+  }
+  return html;
+}
+
+// ---------- Navigation ----------
+function setTab(t) { currentTab = t; render(); window.scrollTo(0, 0); }
+function setFilter(f) { listFilter = f; render(); }
+
+// ---------- Form ----------
+function openForm(id) {
+  editingId = id || null;
+  const e = id ? entries.find(x => x.id === id) : null;
+  document.getElementById('form-title').textContent = e ? 'Eintrag bearbeiten' : 'Neuer Eintrag';
+  document.getElementById('f-name').value = e ? e.name : '';
+  document.getElementById('f-amount').value = e ? e.amount : '';
+  document.getElementById('f-created').value = e ? e.created : todayISO();
+  const due = new Date(); due.setMonth(due.getMonth() + 1);
+  document.getElementById('f-due').value = e ? e.due : due.toISOString().slice(0, 10);
+  document.getElementById('f-note').value = e ? e.note : '';
+  setType(e ? e.type : 'in');
+  closeDetail();
+  document.getElementById('form-backdrop').classList.add('open');
+  validateForm();
+}
+function closeForm() { document.getElementById('form-backdrop').classList.remove('open'); }
+function setType(t) {
+  formType = t;
+  document.getElementById('f-type-in').className = t === 'in' ? 'sel-in' : '';
+  document.getElementById('f-type-out').className = t === 'out' ? 'sel-out' : '';
+}
+function validateForm() {
+  const name = document.getElementById('f-name').value.trim();
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  document.getElementById('form-save').disabled = !(name && amount > 0);
+}
+function saveForm() {
+  const name = document.getElementById('f-name').value.trim();
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  if (!name || !(amount > 0)) return;
+  const data = {
+    name,
+    amount: Math.round(amount * 100) / 100,
+    type: formType,
+    created: document.getElementById('f-created').value || todayISO(),
+    due: document.getElementById('f-due').value || todayISO(),
+    note: document.getElementById('f-note').value.trim()
+  };
+  if (editingId) {
+    const e = entries.find(x => x.id === editingId);
+    Object.assign(e, data);
+  } else {
+    entries.push({ id: uid(), paid: false, paidDate: null, ...data });
+  }
+  persist();
+  closeForm();
+  render();
+}
+
+// ---------- Detail ----------
+function openDetail(id) {
+  detailId = id;
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  const color = e.type === 'in' ? 'c-green' : 'c-red';
+  let badge = '';
+  if (e.paid) badge = `<span class="badge paid">✓ Bezahlt</span>`;
+  else if (isOverdue(e)) badge = `<span class="badge overdue">⚠ Überfällig</span>`;
+
+  document.getElementById('detail-sheet').innerHTML = `
+    <div class="sheet-header">
+      <button onclick="closeDetail()">Schliessen</button>
+      <span class="title">Details</span>
+      <button class="primary" onclick="openForm('${e.id}')">Bearbeiten</button>
+    </div>
+    <div class="detail-head">
+      <div class="d-icon">${e.type === 'in' ? '💰' : '💸'}</div>
+      <div class="d-name">${esc(e.name)}</div>
+      <div class="d-amt ${color}">${chf(e.amount)}</div>
+      <div class="d-type">${e.type === 'in' ? 'Schuldet mir Geld' : 'Ich schulde Geld'}</div>
+      ${badge}
+    </div>
+    <div class="detail-info">
+      <div class="row"><span class="k">Entstanden am</span><span class="v">${fmtDate(e.created)}</span></div>
+      <div class="row"><span class="k">Fällig bis</span><span class="v">${fmtDate(e.due)}</span></div>
+      ${e.paid ? `<div class="row"><span class="k">Bezahlt am</span><span class="v">${fmtDate(e.paidDate)}</span></div>` : ''}
+    </div>
+    ${e.note ? `<div class="note-card"><div class="k">📝 Notiz</div><div class="v">${esc(e.note)}</div></div>` : ''}
+    <button class="btn ${e.paid ? 'btn-gray' : 'btn-green'}" onclick="togglePaid('${e.id}')">
+      ${e.paid ? '↩︎ Als offen markieren' : '✓ Als bezahlt markieren'}
+    </button>
+    <button class="btn btn-red-outline" onclick="deleteEntry('${e.id}')">🗑 Eintrag löschen</button>
+  `;
+  document.getElementById('detail-backdrop').classList.add('open');
+}
+function closeDetail() { document.getElementById('detail-backdrop').classList.remove('open'); }
+function togglePaid(id) {
+  const e = entries.find(x => x.id === id);
+  e.paid = !e.paid;
+  e.paidDate = e.paid ? todayISO() : null;
+  persist();
+  closeDetail();
+  render();
+}
+function deleteEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if (!confirm(`Eintrag von ${e.name} endgültig löschen?`)) return;
+  entries = entries.filter(x => x.id !== id);
+  persist();
+  closeDetail();
+  render();
+}
+
+// Close sheets when tapping the backdrop
+document.getElementById('form-backdrop').addEventListener('click', ev => {
+  if (ev.target.id === 'form-backdrop') closeForm();
+});
+document.getElementById('detail-backdrop').addEventListener('click', ev => {
+  if (ev.target.id === 'detail-backdrop') closeDetail();
+});
+
+load();
+render();
+</script>
+</body>
+</html>
